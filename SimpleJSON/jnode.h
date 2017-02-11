@@ -1,125 +1,108 @@
 #pragma once
-#include <map>
-#include <vector>
 #include <memory>
 
-class json_object;
-class json_array;
-class json_number;
-class json_bool;
-class json_string;
-
-class json_value
+namespace mq
 {
-public:
-    virtual ~json_value() = default;
+class json;
 
-    virtual std::string to_string() const = 0;
-    virtual json_object* as_object();
-    virtual json_array* as_array();
-    virtual json_number* as_number();
-    virtual json_string* as_string();
-    virtual json_bool* as_bool();
-    virtual bool is_null();
-
-    virtual json_value* clone() = 0;
-};
-
-class json_object : public json_value
+class jvalue
 {
+    friend json;
 public:
-    json_object() = default;
-    json_object(const json_object& rhs);
-    json_object(json_object&& rhs) noexcept;
-    json_object& operator=(const json_object& rhs);
-    json_object& operator=(json_object&& rhs) noexcept;
+    enum type
+    {
+        object = 1,
+        array = 2,
+        number = 4,
+        string = 8,
+        boolean = 16,
+        null = 32
+    };
+    virtual ~jvalue() = default;
 
-    std::string to_string() const override;
+    jvalue() = default;
+    jvalue(const jvalue&) = delete;
+    jvalue& operator=(const jvalue&) = delete;
+    jvalue(jvalue&&) = delete;
+    jvalue& operator=(jvalue&&) = delete;
 
-    json_value* operator[](const std::string& key);
-    const json_value* operator[](const std::string& key) const;
+    virtual enum type type() const = 0;
 
-    void add(const std::string& key, std::unique_ptr<json_value>&& value);
-    void remove(const std::string& key);
-    size_t size();
+    bool is_object() const { return type() == object; }
+    bool is_array() const { return type() == array; }
+    bool is_number() const { return type() == number; }
+    bool is_string() const { return type() == string; }
+    bool is_boolean() const { return type() == boolean; }
+    bool is_null() const { return type() == null; }
 
-    json_object* clone() override;
+    virtual bool equals_to(const jvalue*) const = 0;
 private:
-    std::map<std::string, std::unique_ptr<json_value>> _values;
+    static std::shared_ptr<jvalue> true_instance();
+    static std::shared_ptr<jvalue> false_instance();
+    static std::shared_ptr<jvalue> null_instance();
+    template<enum type Type, class T>
+    static std::shared_ptr<jvalue> get_instance(T&& obj);
+    static std::shared_ptr<jvalue> get_instance();
 };
 
-class json_array : public json_value
+
+template<enum jvalue::type Type, class T>
+class json_value : public jvalue
 {
+    friend json;
+protected:
+    explicit json_value(const T& v)
+        : _value(v)
+    {
+    }
+    explicit json_value(T&& v) noexcept
+        : _value(v)
+    {
+    }
 public:
-    json_array() = default;
-    json_array(const json_array& rhs);
-    json_array(json_array&& rhs) noexcept;
-    json_array& operator=(const json_array& rhs);
-    json_array& operator=(json_array&& rhs) noexcept;
+    enum type type() const override
+    {
+        return Type;
+    }
 
-    std::string to_string() const override;
-
-    json_value* operator[](size_t i);
-    const json_value* operator[](size_t i) const;
-
-    void add(std::unique_ptr<json_value>&& value);
-    void remove(size_t i);
-    size_t size();
-
-    json_array* clone() override;
+    bool equals_to(const jvalue* r) const override
+    {
+        auto real = dynamic_cast<const json_value*>(r);
+        return real && real->_value == _value;
+    }
 private:
-    std::vector<std::unique_ptr<json_value>> _values;
+    T _value;
 };
 
-class json_number : public json_value
+template<>
+class json_value<jvalue::null, void> : public jvalue
 {
+    friend json;
+protected:
+    json_value() {}
 public:
-    json_number(double v);
-    json_number(const json_number&) = default;
+    enum type type() const override
+    {
+        return null;
+    }
 
-
-    std::string to_string() const override;
-
-    double value();
-    void value(double val);
-
-    json_number* clone() override;
-private:
-    double _value = 0; //not accurate
+    bool equals_to(const jvalue* r) const override
+    {
+        auto real = dynamic_cast<const json_value*>(r);
+        return real;
+    }
 };
 
-class json_string : public json_value
+template <enum jvalue::type Type, class T>
+std::shared_ptr<jvalue> jvalue::get_instance(T&& obj)
 {
-public:
-    json_string(const std::string& v);
+    using RmRefT = std::remove_reference_t<T>;
+    struct make_shared_enabler : json_value<Type, RmRefT>
+    {
+        make_shared_enabler(RmRefT& v) : json_value<Type, RmRefT>(v) {}
+        make_shared_enabler(RmRefT&& v) : json_value<Type, RmRefT>(std::move(v)) {}
+    };
+    return std::make_shared<make_shared_enabler>(std::forward<T>(obj));
+}
 
-    std::string to_string() const override;
-
-    const std::string& value() const;
-    void value(std::string&& val);
-
-    json_string* clone() override;
-private:
-    std::string _value;
-};
-
-class json_bool : public json_value
-{
-public:
-    explicit json_bool(bool b);
-
-    std::string to_string() const override;
-
-    bool value();
-    void value(bool val);
-
-    json_string* clone() override;
-private:
-    bool _value = false;
-};
-
-class json_null : public json_value
-{
-public:
-    std::string to_string() const override;
-};
+}
