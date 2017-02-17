@@ -39,22 +39,20 @@ public:
     json(bool b);
     template<class T>
     json(T*) = delete; //delete all other ctors
+    ~json();
 
     bool as_bool() const;
-    bool& as_bool();
     int as_int() const;
-    int& as_int();
     double as_double() const;
-    double& as_double();
     const std::string& as_string() const;
-    std::string& as_string();
 
-    bool is_object() const { return type() == json::OBJECT; }
-    bool is_array() const { return type() == json::ARRAY; }
-    bool is_number() const { return type() == json::NUMBER; }
-    bool is_string() const { return type() == json::STRING; }
-    bool is_boolean() const { return type() == json::BOOLEAN; }
-    bool is_null() const { return type() == json::NUL; }
+    type value_type() const;
+    bool is_object() const;
+    bool is_array() const;
+    bool is_number() const;
+    bool is_string() const;
+    bool is_boolean() const;
+    bool is_null() const;
 
     json(const json& r);
     json& operator=(const json& r);
@@ -70,6 +68,7 @@ public:
     friend bool operator!=(const json& l, const json& r);
 
 private:
+    static void dispose_node(const jvalue* n);
     jvalue* _node;
 };
 
@@ -85,16 +84,16 @@ public:
     jvalue(jvalue&&) = delete;
     jvalue& operator=(jvalue&&) = delete;
 
-    virtual enum type type() const = 0;
-    const json* get_value_unsafe(const std::string& key) const;
-    const json* get_value_unsafe(size_t i) const;
-    bool as_bool_unsafe() const;
-    int as_int_unsafe() const;
-    const std::string& as_string_unsafe() const;
-    double as_double_unsafe() const;
+    virtual json::type type() const = 0;
+    const json& get_value_unsafe(const std::string& key) const;
+    const json& get_value_unsafe(size_t i) const;
+    bool get_bool_unsafe() const;
+    int get_int_unsafe() const;
+    const std::string& get_string_unsafe() const;
+    double get_double_unsafe() const;
 
-
-    virtual bool equals_to(const jvalue*) const = 0;
+    virtual jvalue* clone() = 0;
+    virtual bool equals_to_unsafe(const jvalue* r) const = 0;
 
     static jvalue* null_instance();
     static jvalue* true_instance();
