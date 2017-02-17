@@ -4,7 +4,7 @@
 
 namespace mq
 {
-
+//TODO: make it thread-safe
 class json_flat_deleter
 {
 public:
@@ -19,6 +19,12 @@ public:
     json_flat_deleter& operator=(json_flat_deleter&&) = delete;
     void add_value(const jvalue* v)
     {
+#ifdef _DEBUG
+        if (std::find(jvalues.begin(), jvalues.end(), v) != jvalues.end())
+        {
+            assert(0);
+        }
+#endif
         jvalues.push_back(v);
         if (jvalues.size() > 16)
         {
@@ -334,6 +340,26 @@ const std::string& json::as_string() const
     return _node->get_string_unsafe();
 }
 
+const json::object& json::as_object() const
+{
+    static object empty;
+    if (value_type() != OBJECT)
+    {
+        return empty;
+    }
+    return _node->get_object_unsafe();
+}
+
+const json::array& json::as_array() const
+{
+    static array empty;
+    if (value_type() != ARRAY)
+    {
+        return empty;
+    }
+    return _node->get_array_unsafe();
+}
+
 json::type json::value_type() const
 {
     return _node->type();
@@ -387,6 +413,7 @@ json& json::operator=(const json& r)
 json::json(json&& r) noexcept
     : _node(r._node)
 {
+    r._node = nullptr;
 }
 
 json& json::operator=(json&& r) noexcept
@@ -411,12 +438,10 @@ const json& json::operator[](const std::string& i) const
 
 json& json::operator[](const std::string& i)
 {
-    if (value_type() == OBJECT)
+    if (value_type() != OBJECT)
     {
-        auto arr = static_cast<jobject*>(_node); //sure
-        return arr->_v[i]; //if key not exists, add entry
+        *this = object{};
     }
-    *this = object{};
     return static_cast<jobject*>(_node)->_v[i];
 }
 
@@ -476,6 +501,18 @@ const std::string& jvalue::get_string_unsafe() const
 {
     assert(reinterpret_cast<const jstring*>(this) != nullptr);
     return static_cast<const jstring*>(this)->_v;
+}
+
+const json::object& jvalue::get_object_unsafe() const
+{
+    assert(reinterpret_cast<const jobject*>(this) != nullptr);
+    return static_cast<const jobject*>(this)->_v;
+}
+
+const json::array& jvalue::get_array_unsafe() const
+{
+    assert(reinterpret_cast<const jarray*>(this) != nullptr);
+    return static_cast<const jarray*>(this)->_v;
 }
 
 double jvalue::get_double_unsafe() const

@@ -54,6 +54,8 @@ public:
     int as_int() const;
     double as_double() const;
     const std::string& as_string() const;
+    const object& as_object() const;
+    const array& as_array() const;
 
     type value_type() const;
     bool is_object() const;
@@ -99,6 +101,8 @@ public:
     bool get_bool_unsafe() const;
     int get_int_unsafe() const;
     const std::string& get_string_unsafe() const;
+    const json::object& get_object_unsafe() const;
+    const json::array& get_array_unsafe() const;
     double get_double_unsafe() const;
 
     virtual jvalue* clone() = 0;

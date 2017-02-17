@@ -1,12 +1,24 @@
-#define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <crtdbg.h>
-
 #define BOOST_TEST_MODULE SimpileJSON Test
 #define BOOST_TEST_DETECT_MEMORY_LEAK 1
 #include <boost/test/included/unit_test.hpp>
 #include "json.h"
 using namespace mq;
+
+BOOST_AUTO_TEST_CASE(json_ctor_dtor_test)
+{
+    json simple = 1;
+    json copy = simple;
+    json move = std::move(simple);
+    
+    json complex = json::object{{"key", "value"}};
+    json ccopy = complex;
+    json cmove = std::move(complex);
+
+    ccopy = ccopy;
+    ccopy = cmove;
+    cmove = std::move(ccopy);
+    cmove = std::move(cmove);
+}
 
 BOOST_AUTO_TEST_CASE(json_construction_and_readonly_test)
 {
@@ -59,4 +71,49 @@ BOOST_AUTO_TEST_CASE(json_copy_and_equality_test)
     BOOST_TEST((copy[1] == 4.4));
     BOOST_TEST((copy[2] == false));
     BOOST_TEST((copy[3] == nullptr));
+}
+
+BOOST_AUTO_TEST_CASE(json_edit_test)
+{
+    json doc;
+    BOOST_TEST((doc == nullptr));
+
+    doc = json::array{1, 2, 3, 4, 5}; //reset null to array
+    auto& arr = doc.as_array();
+    for (int i = 0; i < 5; i++)
+    {
+        BOOST_TEST((arr[i] == i + 1));
+    }
+
+    doc[0] = json::object{{"int", 1},{"str", "2"}}; //reset int to object
+    auto& obj = doc[0].as_object();
+    BOOST_TEST((obj.find("int")->second == 0));
+    BOOST_TEST((obj.find("str")->second == "2"));
+
+    doc[0]["int"] = nullptr; //reset object to null
+    BOOST_TEST((doc[0]["int"] == nullptr));
+
+    doc[0]["not_exist_key"] = 2.3; //if key is not exist, add the key
+    BOOST_TEST((doc[0]["not_exist_key"] == 2.3));
+
+    doc[9] = 2.4; //if index is not exist, expand the array and fill the new entry with null
+    for(int i = 5; i < 9; i++)
+    {
+        BOOST_TEST((doc[i] == nullptr));
+    }
+    BOOST_TEST((doc[9] == 2.4));
+
+    doc[5]["new"] = 1; //use [] on a non-object/non-array term will convert it to the corresponding object
+    BOOST_TEST((doc[5].is_object()));
+    BOOST_TEST((doc[5]["new"] == 1));
+    
+    doc[5][1] = 2;
+    BOOST_TEST((doc[5].is_array()));
+    BOOST_TEST((doc[5][1] == 2));
+
+    BOOST_TEST((doc[111] == nullptr)); //new initialized value is null
+    BOOST_TEST((doc["obj"] == nullptr));
+
+    doc = nullptr;
+    cleanup();
 }
