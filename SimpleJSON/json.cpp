@@ -13,47 +13,47 @@ json::json(std::nullptr_t)
 }
 
 json::json(int d)
-    : _node(jvalue::get_instance<jvalue::number>(d))
+    : _node(jvalue::int_instance(d))
 {
 }
 
 json::json(double d)
-    : _node(jvalue::get_instance<jvalue::number>(d))
+    : _node(jvalue::double_instance(d))
 {
 }
 
 json::json(const std::string& s)
-    : _node(jvalue::get_instance<jvalue::string>(s))
+    : _node(jvalue::string_instance(s))
 {
 }
 
 json::json(std::string&& s)
-    : _node(jvalue::get_instance<jvalue::string>(std::move(s)))
+    : _node(jvalue::string_instance(std::move(s)))
 {
 }
 
 json::json(const char* s)
-    : _node(jvalue::get_instance<jvalue::string>(s))
+    : _node(jvalue::string_instance(s))
 {
 }
 
 json::json(const object& r)
-    : _node(jvalue::get_instance<jvalue::object>(r))
+    : _node(jvalue::object_instance(r))
 {
 }
 
 json::json(object&& r)
-    : _node(jvalue::get_instance<jvalue::object>(std::move(r)))
+    : _node(jvalue::object_instance(std::move(r)))
 {
 }
 
 json::json(const array& r)
-    : _node(jvalue::get_instance<jvalue::array>(r))
+    : _node(jvalue::array_instance(r))
 {
 }
 
 json::json(array&& r)
-    : _node(jvalue::get_instance<jvalue::array>(std::move(r)))
+    : _node(jvalue::array_instance(std::move(r)))
 {
 }
 
