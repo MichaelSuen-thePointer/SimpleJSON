@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(json_edit_test)
 
     doc[0] = json::object{{"int", 1},{"str", "2"}}; //reset int to object
     auto& obj = doc[0].as_object();
-    BOOST_TEST((obj.find("int")->second == 0));
+    BOOST_TEST((obj.find("int")->second == 1));
     BOOST_TEST((obj.find("str")->second == "2"));
 
     doc[0]["int"] = nullptr; //reset object to null
@@ -115,5 +115,4 @@ BOOST_AUTO_TEST_CASE(json_edit_test)
     BOOST_TEST((doc["obj"] == nullptr));
 
     doc = nullptr;
-    cleanup();
 }

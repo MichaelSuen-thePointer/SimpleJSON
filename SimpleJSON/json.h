@@ -83,44 +83,4 @@ private:
     jvalue* _node;
 };
 
-class jvalue
-{
-    friend json;
-public:
-    virtual ~jvalue() = default;
-
-    jvalue() = default;
-    jvalue(const jvalue&) = delete;
-    jvalue& operator=(const jvalue&) = delete;
-    jvalue(jvalue&&) = delete;
-    jvalue& operator=(jvalue&&) = delete;
-
-    virtual json::type type() const = 0;
-    const json& get_value_unsafe(const std::string& key) const;
-    const json& get_value_unsafe(size_t i) const;
-    bool get_bool_unsafe() const;
-    int get_int_unsafe() const;
-    const std::string& get_string_unsafe() const;
-    const json::object& get_object_unsafe() const;
-    const json::array& get_array_unsafe() const;
-    double get_double_unsafe() const;
-
-    virtual jvalue* clone() = 0;
-    virtual bool equals_to_unsafe(const jvalue* r) const = 0;
-
-    static jvalue* null_instance();
-    static jvalue* true_instance();
-    static jvalue* false_instance();
-    static jvalue* int_instance(int i);
-    static jvalue* double_instance(double d);
-    static jvalue* string_instance(const std::string& s);
-    static jvalue* string_instance(std::string&& s);
-    static jvalue* object_instance(const json::object& s);
-    static jvalue* object_instance(json::object&& s);
-    static jvalue* array_instance(const json::array& s);
-    static jvalue* array_instance(json::array&& s);
-};
-
-void cleanup();
-
 }
