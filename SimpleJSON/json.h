@@ -78,6 +78,7 @@ public:
     friend bool operator==(const json& l, const json& r);
     friend bool operator!=(const json& l, const json& r);
 
+    static json parse(const std::string& s);
 private:
     static void dispose_node(const jvalue* n);
     jvalue* _node;

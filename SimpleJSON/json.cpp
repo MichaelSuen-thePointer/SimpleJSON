@@ -1,6 +1,7 @@
 #include "json.h"
 #include "jerror.h"
 #include <cassert>
+#include "jparser.h"
 
 namespace mq
 {
@@ -482,6 +483,13 @@ json& json::operator[](const std::string& i)
         *this = object{};
     }
     return static_cast<jobject*>(_node)->_v[i];
+}
+
+json json::parse(const std::string& s)
+{
+    auto buf = s.c_str();
+    auto p = buf;
+    return jparser::parse_value(p);
 }
 
 void json::dispose_node(const jvalue* n)

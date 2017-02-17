@@ -118,6 +118,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="jnode.cpp" />
+    <ClCompile Include="jparser.cpp" />
     <ClCompile Include="json.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
