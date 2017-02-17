@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <string>
 
 namespace mq
 {
@@ -27,6 +28,12 @@ public:
     jvalue& operator=(jvalue&&) = delete;
 
     virtual enum type type() const = 0;
+    const json* get_value_unsafe(const std::string& key) const;
+    const json* get_value_unsafe(size_t i) const;
+    bool as_bool_unsafe() const;
+    int as_int_unsafe() const;
+    const std::string& as_string_unsafe() const;
+    double as_double_unsafe() const;
 
     bool is_object() const { return type() == object; }
     bool is_array() const { return type() == array; }
@@ -34,6 +41,7 @@ public:
     bool is_string() const { return type() == string; }
     bool is_boolean() const { return type() == boolean; }
     bool is_null() const { return type() == null; }
+
 
     virtual bool equals_to(const jvalue*) const = 0;
 private:
@@ -45,11 +53,11 @@ private:
     static std::shared_ptr<jvalue> get_instance();
 };
 
-
 template<enum jvalue::type Type, class T>
 class json_value : public jvalue
 {
     friend json;
+    friend jvalue;
 protected:
     explicit json_value(const T& v)
         : _value(v)
@@ -70,7 +78,8 @@ public:
         auto real = dynamic_cast<const json_value*>(r);
         return real && real->_value == _value;
     }
-private:
+
+protected:
     T _value;
 };
 

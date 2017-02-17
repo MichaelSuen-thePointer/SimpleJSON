@@ -1,7 +1,10 @@
+#define BOOST_TEST_MODULE SimpileJSON Test
+#include <boost/test/included/unit_test.hpp>
 #include "json.h"
 using namespace mq;
-int main()
+
+BOOST_AUTO_TEST_CASE(json_value_test)
 {
-    json d = json::object({{"1", "s"}, {"2", 2.1}});
-    
+    json boolean = true;
+    BOOST_TEST(boolean.as)
 }

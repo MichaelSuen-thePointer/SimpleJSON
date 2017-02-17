@@ -1,6 +1,9 @@
 #pragma once
 #include <stdexcept>
 
+namespace mq
+{
+
 class json_exception : public std::runtime_error
 {
 public:
@@ -10,10 +13,12 @@ public:
     }
 };
 
-class null_json_value : public json_exception
+class bad_json_cast : public json_exception
 {
+public:
+    bad_json_cast()
+        : json_exception("bad json cast")
+    { }
 };
 
-class json_parse_error : public json_exception
-{
-};
+}

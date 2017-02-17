@@ -1,4 +1,5 @@
 #include "json.h"
+#include "jerror.h"
 namespace mq
 {
 json::json()
@@ -61,6 +62,38 @@ json::json(bool b)
 {
 }
 
+json::type json::value_type() const
+{
+    return _node->type();
+}
+
+bool json::as_bool() const
+{
+    if (value_type() != type::boolean)
+    {
+        throw bad_json_cast{};
+    }
+    return _node->as_bool_unsafe();
+}
+
+int json::as_int() const
+{
+    
+}
+
+double json::as_double() const
+{
+}
+
+const std::string& json::as_string() const
+{
+    if (value_type() != type::string)
+    {
+        throw bad_json_cast{};
+    }
+    return _node->as_string_unsafe();
+}
+
 json::json(const json& r)
     : _node(r._node)
 {
@@ -93,6 +126,11 @@ const json& json::operator[](const std::string& i) const
 {
     if (_node->is_object())
     {
+        auto r = _node->get_value_unsafe(i);
+        if (r)
+        {
+            return *r;
+        }
     }
     return null;
 }
@@ -101,7 +139,11 @@ const json& json::operator[](size_t i) const
 {
     if(_node->is_array())
     {
-        
+        auto r = _node->get_value_unsafe(i);
+        if (r)
+        {
+            return *r;
+        }
     }
     return null;
 }

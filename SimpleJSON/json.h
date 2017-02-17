@@ -27,6 +27,14 @@ public:
     template<class T>
     json(T*) = delete; //delete all other ctors
 
+    using type = enum jvalue::type;
+
+    type value_type() const;
+    bool as_bool() const;
+    int as_int() const;
+    double as_double() const;
+    const std::string& as_string() const;
+
     json(const json& r);
     json& operator=(const json& r);
     json(json&& r) noexcept;
