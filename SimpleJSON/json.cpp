@@ -27,6 +27,11 @@ public:
     }
     void start_delete()
     {
+        if (is_started)
+        {
+            return;
+        }
+        is_started = true;
         size_t i = 0;
         while (i != jvalues.size())
         {
@@ -34,6 +39,7 @@ public:
             i++;
         }
         jvalues.clear();
+        is_started = false;
     }
     ~json_flat_deleter()
     {
@@ -41,6 +47,7 @@ public:
     }
 private:
     json_flat_deleter() {}
+    bool is_started = false;
     std::vector<const jvalue*> jvalues;
 };
 
@@ -122,7 +129,7 @@ public:
     }
     jvalue* clone() override
     {
-        return new jboolean(_v);
+        return _v ? true_instance() : false_instance();
     }
     bool equals_to_unsafe(const jvalue* r) const override
     {
@@ -533,6 +540,11 @@ jvalue* jvalue::array_instance(const json::array& s)
 jvalue* jvalue::array_instance(json::array&& s)
 {
     return new jarray(std::move(s));
+}
+
+void cleanup()
+{
+    json_flat_deleter::instance().start_delete();
 }
 
 const json& json::operator[](size_t i) const
