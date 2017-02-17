@@ -99,7 +99,7 @@ public:
     }
     int get_int() const override
     {
-        return _v;
+        return static_cast<int>(_v);
     }
     double get_double() const override
     {
@@ -319,9 +319,10 @@ double json::as_double() const
 
 const std::string& json::as_string() const
 {
+    static std::string empty;
     if (value_type() != STRING)
     {
-        return "";
+        return empty;
     }
     return _node->get_string_unsafe();
 }
@@ -441,6 +442,17 @@ const json& jvalue::get_value_unsafe(const std::string& key) const
     return res->second;
 }
 
+const json& jvalue::get_value_unsafe(size_t i) const
+{
+    assert(reinterpret_cast<const jarray*>(this) != nullptr);
+    auto& arr = static_cast<const jarray*>(this)->_v;
+    if (i < arr.size())
+    {
+        return arr[i];
+    }
+    return json::null;
+}
+
 bool jvalue::get_bool_unsafe() const
 {
     assert(reinterpret_cast<const jboolean*>(this) != nullptr);
@@ -544,7 +556,7 @@ json& json::operator[](size_t i)
         arr.insert(arr.end(), i - arr.size() + 1, json{});
         return arr[i];
     }
-    (*this) = array{i + 1};
+    (*this) = array(i + 1);
     return static_cast<jarray*>(_node)->_v[i];
 }
 
