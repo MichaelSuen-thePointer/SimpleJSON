@@ -487,9 +487,7 @@ json& json::operator[](const std::string& i)
 
 json json::parse(const std::string& s)
 {
-    auto buf = s.c_str();
-    auto p = buf;
-    return jparser::parse_value(p);
+    return jparser::parse(s);
 }
 
 void json::dispose_node(const jvalue* n)

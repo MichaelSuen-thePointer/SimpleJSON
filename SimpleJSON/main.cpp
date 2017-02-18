@@ -2,6 +2,7 @@
 #define BOOST_TEST_DETECT_MEMORY_LEAK 1
 #include <boost/test/included/unit_test.hpp>
 #include "json.h"
+#include "jparser.h"
 using namespace mq;
 
 BOOST_AUTO_TEST_CASE(json_ctor_dtor_test)
@@ -9,7 +10,7 @@ BOOST_AUTO_TEST_CASE(json_ctor_dtor_test)
     json simple = 1;
     json copy = simple;
     json move = std::move(simple);
-    
+
     json complex = json::object{{"key", "value"}};
     json ccopy = complex;
     json cmove = std::move(complex);
@@ -97,7 +98,7 @@ BOOST_AUTO_TEST_CASE(json_edit_test)
     BOOST_TEST((doc[0]["not_exist_key"] == 2.3));
 
     doc[9] = 2.4; //if index is not exist, expand the array and fill the new entry with null
-    for(int i = 5; i < 9; i++)
+    for (int i = 5; i < 9; i++)
     {
         BOOST_TEST((doc[i] == nullptr));
     }
@@ -106,7 +107,7 @@ BOOST_AUTO_TEST_CASE(json_edit_test)
     doc[5]["new"] = 1; //use [] on a non-object/non-array term will convert it to the corresponding object
     BOOST_TEST((doc[5].is_object()));
     BOOST_TEST((doc[5]["new"] == 1));
-    
+
     doc[5][1] = 2;
     BOOST_TEST((doc[5].is_array()));
     BOOST_TEST((doc[5][1] == 2));
@@ -115,4 +116,20 @@ BOOST_AUTO_TEST_CASE(json_edit_test)
     BOOST_TEST((doc["obj"] == nullptr));
 
     doc = nullptr;
+}
+
+BOOST_AUTO_TEST_CASE(json_string_escape_sequence)
+{
+    std::string err;
+    auto _1 = jparser::parse(R"("")", err);
+    BOOST_TEST((_1.as_string() == ""));
+    BOOST_TEST((err == ""));
+
+    auto _2 = jparser::parse(R"("\" \\ \/ \b \f \n \r \t")", err);
+    BOOST_TEST((_2.as_string() == "\" \\ / \b \f \n \r \t"));
+    BOOST_TEST((err == ""));
+
+    auto _3 = jparser::parse(R"("\u0024 \u20AC \uD801\uDC37 \uD852\uDF62")");
+    BOOST_TEST((_3.as_string() == "\x24 \xe2\x82\xac \xf0\x90\x90\xb7 \xf0\xa4\xad\xa2"));
+    BOOST_TEST((err == ""));
 }
