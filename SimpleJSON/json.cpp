@@ -107,12 +107,8 @@ public:
     }
     virtual int64_t get_int() const = 0;
     virtual double get_double() const = 0;
-    bool equals_to_unsafe(const jvalue* r) const override
-    {
-        assert(reinterpret_cast<const jnumber*>(r) != nullptr);
-        auto right = static_cast<const jnumber*>(r);
-        return this->get_double() == right->get_double();
-    }
+    virtual bool equals_to(int64_t i) const = 0; //used for double dispatch
+    virtual bool equals_to(double i) const = 0;
 };
 
 class jint : public jnumber
@@ -132,7 +128,22 @@ public:
     }
     double get_double() const override
     {
-        return _v;
+        return static_cast<double>(_v);
+    }
+    bool equals_to_unsafe(const jvalue* r) const override //use double dispatch to compare two number
+    {
+        assert(reinterpret_cast<const jnumber*>(r) != nullptr);
+        auto num = static_cast<const jnumber*>(r);
+        return num->equals_to(_v);
+    }
+protected:
+    bool equals_to(int64_t i) const override
+    {
+        return _v == i;
+    }
+    bool equals_to(double i) const override
+    {
+        return _v == i;
     }
 private:
     int64_t _v;
@@ -156,6 +167,21 @@ public:
     double get_double() const override
     {
         return _v;
+    }
+    bool equals_to_unsafe(const jvalue* r) const override //use double dispatch to compare two number
+    {
+        assert(reinterpret_cast<const jnumber*>(r) != nullptr);
+        auto num = static_cast<const jnumber*>(r);
+        return num->equals_to(_v);
+    }
+protected:
+    bool equals_to(int64_t i) const override
+    {
+        return _v == i;
+    }
+    bool equals_to(double i) const override
+    {
+        return _v == i;
     }
 private:
     double _v;
@@ -284,6 +310,11 @@ json::json()
 
 json::json(std::nullptr_t)
     : _node(jvalue::null_instance())
+{
+}
+
+json::json(int d)
+    : _node(jvalue::int_instance(d))
 {
 }
 

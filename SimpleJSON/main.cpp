@@ -136,11 +136,11 @@ BOOST_AUTO_TEST_CASE(json_string_escape_sequence_test)
 
 BOOST_AUTO_TEST_CASE(json_number_parse_test)
 {
-    auto _1 = jparser::parse("1.3");
-    BOOST_TEST((_1 == 1.3));
+    auto _1 = jparser::parse("1.4");
+    BOOST_TEST((_1 == 1.4));
 
-    auto _2 = jparser::parse("-1.3");
-    BOOST_TEST((_2 == -1.3));
+    auto _2 = jparser::parse("-1.4");
+    BOOST_TEST((_2 == -1.4));
 
     auto _3 = jparser::parse("-0");
     BOOST_TEST((_3 == 0));
@@ -162,6 +162,12 @@ BOOST_AUTO_TEST_CASE(json_number_parse_test)
 
     auto _9 = jparser::parse("0.1e5");
     BOOST_TEST((_9 == 0.1e5));
+}
+
+BOOST_AUTO_TEST_CASE(json_big_number_test)
+{
+    auto j = jparser::parse("100000000000000000000000000"); //1e26 fallback to double
+    BOOST_TEST((j == 1e26));
 }
 
 BOOST_AUTO_TEST_CASE(json_parser_test)

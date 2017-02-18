@@ -42,6 +42,7 @@ public:
 
     json();
     json(std::nullptr_t);
+    json(int d);
     json(int64_t d);
     json(double d);
     json(const std::string& s);

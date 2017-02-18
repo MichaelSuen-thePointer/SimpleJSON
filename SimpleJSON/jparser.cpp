@@ -6,7 +6,7 @@
 
 namespace mq
 {
-json jparser::parse(const std::string& s, std::string& err)
+json jparser::parse(const std::string& s, std::string& err) noexcept
 {
     try
     {
@@ -20,7 +20,7 @@ json jparser::parse(const std::string& s, std::string& err)
     }
 }
 
-json jparser::parse(const std::string& s)
+json jparser::parse(const std::string& s) noexcept
 {
     std::string err;
     return parse(s, err);
@@ -41,22 +41,22 @@ json jparser::parse_value()
     }
     switch (*p)
     {
-        case '{':
-            return parse_object();
-        case '[':
-            return parse_array();
-        case 't': case 'f':
-            return parse_boolean();
-        case 'n':
-            return parse_null();
-        case '\"':
-            return parse_string();
-        default:
-            if (isdigit(*p) || *p == '-')
-            {
-                return parse_number();
-            }
-            return json::null;
+    case '{':
+        return parse_object();
+    case '[':
+        return parse_array();
+    case 't': case 'f':
+        return parse_boolean();
+    case 'n':
+        return parse_null();
+    case '\"':
+        return parse_string();
+    default:
+        if (isdigit(*p) || *p == '-')
+        {
+            return parse_number();
+        }
+        return json::null;
     }
 }
 
@@ -94,42 +94,42 @@ std::string jparser::parse_string()
             ++p;
             switch (*p)
             {
-                case'\"':
-                    ++p;
-                    str.push_back('\"');
-                    continue;
-                case '\\':
-                    ++p;
-                    str.push_back('\\');
-                    continue;
-                case '/':
-                    ++p;
-                    str.push_back('/');
-                    continue;
-                case 'b':
-                    ++p;
-                    str.push_back('\b');
-                    continue;
-                case 'f':
-                    ++p;
-                    str.push_back('\f');
-                    continue;
-                case 'n':
-                    ++p;
-                    str.push_back('\n');
-                    continue;
-                case 'r':
-                    ++p;
-                    str.push_back('\r');
-                    continue;
-                case 't':
-                    ++p;
-                    str.push_back('\t');
-                    continue;
-                case 'u':
-                    str += parse_utf16_escape_sequence();
-                    continue;
-                default:; //fall through
+            case'\"':
+                ++p;
+                str.push_back('\"');
+                continue;
+            case '\\':
+                ++p;
+                str.push_back('\\');
+                continue;
+            case '/':
+                ++p;
+                str.push_back('/');
+                continue;
+            case 'b':
+                ++p;
+                str.push_back('\b');
+                continue;
+            case 'f':
+                ++p;
+                str.push_back('\f');
+                continue;
+            case 'n':
+                ++p;
+                str.push_back('\n');
+                continue;
+            case 'r':
+                ++p;
+                str.push_back('\r');
+                continue;
+            case 't':
+                ++p;
+                str.push_back('\t');
+                continue;
+            case 'u':
+                str += parse_utf16_escape_sequence();
+                continue;
+            default:; //fall through
             }
         }
         if (*p == '\"')
@@ -238,8 +238,6 @@ json jparser::parse_number()
 {
     skip_space();
     const char* c = p;
-    int64_t integer = 0;
-    double fraction = 0;
     char* e;
     if (*c == '-')
     {
@@ -251,20 +249,24 @@ json jparser::parse_number()
     }
     else if (isdigit(*c)) //1-9
     {
-        integer = std::strtoll(p, &e, 10);
-        if (*e != '.' || *e != 'e' || *e != 'E') // Number is integer.
+        do
         {
-            if (errno == ERANGE)
-            {
-                throw std::runtime_error(("Number too big at position ") + std::to_string(e - s));
-            }
-            p = e;
-            return integer;
-        }
+            ++c;
+        } while (isdigit(*c));
     }
     else
     {
         throw std::runtime_error(("Expected digit at position ") + std::to_string(c - s));
+    }
+    if (*c != '.' && *c != 'e' && *c != 'E')
+    {
+        errno = 0;
+        int64_t integer = std::strtoll(p, &e, 10);
+        if (errno != ERANGE)
+        {
+            p = e;
+            return integer;
+        }
     }
     if (*c == '.')
     {
@@ -286,9 +288,13 @@ json jparser::parse_number()
         {
             throw std::runtime_error(("Expected digit at position ") + std::to_string(c - s));
         }
-        for (++c; isdigit(*c); ++c);
+        do
+        {
+            ++c;
+        } while (isdigit(*c));
     }
-    fraction = std::strtod(p, &e);
+    errno = 0;
+    double fraction = std::strtod(p, &e);
     if (errno == ERANGE)
     {
         throw std::runtime_error(("Number too big at position ") + std::to_string(e - s));
