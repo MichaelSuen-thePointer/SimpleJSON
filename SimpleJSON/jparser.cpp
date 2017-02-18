@@ -1,6 +1,8 @@
 #include "jparser.h"
+#include <cerrno>
 #include <cctype>
 #include <cassert>
+#include <cstdlib>
 
 namespace mq
 {
@@ -39,22 +41,22 @@ json jparser::parse_value()
     }
     switch (*p)
     {
-    case '{':
-        return parse_object();
-    case '[':
-        return parse_array();
-    case 't': case 'f':
-        return parse_boolean();
-    case 'n':
-        return parse_null();
-    case '\"':
-        return parse_string();
-    default:
-        if (isdigit(*p) || *p == '-')
-        {
-            return parse_number();
-        }
-        return json::null;
+        case '{':
+            return parse_object();
+        case '[':
+            return parse_array();
+        case 't': case 'f':
+            return parse_boolean();
+        case 'n':
+            return parse_null();
+        case '\"':
+            return parse_string();
+        default:
+            if (isdigit(*p) || *p == '-')
+            {
+                return parse_number();
+            }
+            return json::null;
     }
 }
 
@@ -92,42 +94,42 @@ std::string jparser::parse_string()
             ++p;
             switch (*p)
             {
-            case'\"':
-                ++p;
-                str.push_back('\"');
-                continue;
-            case '\\':
-                ++p;
-                str.push_back('\\');
-                continue;
-            case '/':
-                ++p;
-                str.push_back('/');
-                continue;
-            case 'b':
-                ++p;
-                str.push_back('\b');
-                continue;
-            case 'f':
-                ++p;
-                str.push_back('\f');
-                continue;
-            case 'n':
-                ++p;
-                str.push_back('\n');
-                continue;
-            case 'r':
-                ++p;
-                str.push_back('\r');
-                continue;
-            case 't':
-                ++p;
-                str.push_back('\t');
-                continue;
-            case 'u':
-                str += parse_utf16_escape_sequence();
-                continue;
-            default:; //fall through
+                case'\"':
+                    ++p;
+                    str.push_back('\"');
+                    continue;
+                case '\\':
+                    ++p;
+                    str.push_back('\\');
+                    continue;
+                case '/':
+                    ++p;
+                    str.push_back('/');
+                    continue;
+                case 'b':
+                    ++p;
+                    str.push_back('\b');
+                    continue;
+                case 'f':
+                    ++p;
+                    str.push_back('\f');
+                    continue;
+                case 'n':
+                    ++p;
+                    str.push_back('\n');
+                    continue;
+                case 'r':
+                    ++p;
+                    str.push_back('\r');
+                    continue;
+                case 't':
+                    ++p;
+                    str.push_back('\t');
+                    continue;
+                case 'u':
+                    str += parse_utf16_escape_sequence();
+                    continue;
+                default:; //fall through
             }
         }
         if (*p == '\"')
@@ -235,85 +237,63 @@ json jparser::parse_array()
 json jparser::parse_number()
 {
     skip_space();
-    int integer = 0;
+    const char* c = p;
+    int64_t integer = 0;
     double fraction = 0;
-    bool neg = false;
-    bool isInteger = true;
-    if (*p == '-')
+    char* e;
+    if (*c == '-')
     {
-        neg = true;
-        ++p;
+        ++c;
     }
-    if (*p == '0')
+    if (*c == '0')
     {
-        ++p;
+        ++c;
     }
-    else if (isdigit(*p)) //1-9
+    else if (isdigit(*c)) //1-9
     {
-        do
+        integer = std::strtoll(p, &e, 10);
+        if (*e != '.' || *e != 'e' || *e != 'E') // Number is integer.
         {
-            integer = integer * 10 + *p - '0';
-            ++p;
-        } while (isdigit(*p));
+            if (errno == ERANGE)
+            {
+                throw std::runtime_error(("Number too big at position ") + std::to_string(e - s));
+            }
+            p = e;
+            return integer;
+        }
     }
     else
     {
-        throw std::runtime_error(("Expected digit at position ") + std::to_string(p - s));
+        throw std::runtime_error(("Expected digit at position ") + std::to_string(c - s));
     }
-    if (*p == '.')
+    if (*c == '.')
     {
-        isInteger = false;
-        fraction = integer;
-        ++p;
-        double times = 10;
-        while (isdigit(*p))
+        ++c;
+        if (!isdigit(*c))
         {
-            fraction += (*p - '0') / times;
-            times *= 10;
-            ++p;
+            throw std::runtime_error(("Expected digit at position ") + std::to_string(c - s));
         }
+        for (++c; isdigit(*c); ++c);
     }
-    if (*p == 'e' || *p == 'E')
+    if (*c == 'e' || *c == 'E')
     {
-        if (isInteger)
+        ++c;
+        if (*c == '-' || *c == '+')
         {
-            isInteger = false;
-            fraction = integer;
+            ++c;
         }
-        bool negExp = false;
-        double exp = 0;
-        ++p;
-        if (*p == '-' || *p == '+')
+        if (!isdigit(*c))
         {
-            negExp = *p == '-';
-            ++p;
+            throw std::runtime_error(("Expected digit at position ") + std::to_string(c - s));
         }
-        while (isdigit(*p))
-        {
-            exp = exp * 10 + *p - '0';
-            ++p;
-        }
-        if (negExp)
-        {
-            fraction /= pow(10, exp);
-        }
-        else
-        {
-            fraction *= pow(10, exp);
-        }
+        for (++c; isdigit(*c); ++c);
     }
-    if (isInteger)
+    fraction = std::strtod(p, &e);
+    if (errno == ERANGE)
     {
-        if (neg)
-        {
-            return -integer;
-        }
-        return integer;
+        throw std::runtime_error(("Number too big at position ") + std::to_string(e - s));
     }
-    if (neg)
-    {
-        return -fraction;
-    }
+    p = e;
     return fraction;
 }
 
@@ -399,17 +379,7 @@ std::string jparser::parse_utf16_escape_sequence()
 
 void jparser::skip_space()
 {
-    while (*p)
-    {
-        switch (*p)
-        {
-        case ' ':case '\t':case '\r':case '\n':
-            ++p;
-            break;
-        default:
-            return;
-        }
-    }
+    for (; *p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'; ++p);
 }
 
 }
