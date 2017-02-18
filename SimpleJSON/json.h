@@ -12,6 +12,7 @@
 #define new DEBUG_NEW
 #endif
 
+#include <stdint.h>
 
 #include <map>
 #include <string>
@@ -41,7 +42,7 @@ public:
 
     json();
     json(std::nullptr_t);
-    json(int d);
+    json(int64_t d);
     json(double d);
     json(const std::string& s);
     json(std::string&& s);
@@ -56,7 +57,7 @@ public:
     ~json();
 
     bool as_bool() const;
-    int as_int() const;
+    int64_t as_int() const;
     double as_double() const;
     const std::string& as_string() const;
     const object& as_object() const;
