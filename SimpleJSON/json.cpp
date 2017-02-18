@@ -21,7 +21,7 @@ public:
     const json& get_value_unsafe(const std::string& key) const;
     const json& get_value_unsafe(size_t i) const;
     bool get_bool_unsafe() const;
-    int get_int_unsafe() const;
+    int64_t get_int_unsafe() const;
     const std::string& get_string_unsafe() const;
     const json::object& get_object_unsafe() const;
     const json::array& get_array_unsafe() const;
@@ -33,7 +33,7 @@ public:
     static jvalue* null_instance();
     static jvalue* true_instance();
     static jvalue* false_instance();
-    static jvalue* int_instance(int i);
+    static jvalue* int_instance(int64_t i);
     static jvalue* double_instance(double d);
     static jvalue* string_instance(const std::string& s);
     static jvalue* string_instance(std::string&& s);
@@ -105,7 +105,7 @@ public:
     {
         return json::NUMBER;
     }
-    virtual int get_int() const = 0;
+    virtual int64_t get_int() const = 0;
     virtual double get_double() const = 0;
     bool equals_to_unsafe(const jvalue* r) const override
     {
@@ -120,13 +120,13 @@ class jint : public jnumber
 public:
     friend class json;
     friend class jvalue;
-    jint(int i) : _v(i) {}
+    jint(int64_t i) : _v(i) {}
 
     jvalue* clone() override
     {
         return new jint(_v);
     }
-    int get_int() const override
+    int64_t get_int() const override
     {
         return _v;
     }
@@ -135,7 +135,7 @@ public:
         return _v;
     }
 private:
-    int _v;
+    int64_t _v;
 };
 
 class jdouble : public jnumber
@@ -149,9 +149,9 @@ public:
     {
         return new jdouble(_v);
     }
-    int get_int() const override
+    int64_t get_int() const override
     {
-        return static_cast<int>(_v);
+        return static_cast<int64_t>(_v);
     }
     double get_double() const override
     {
@@ -287,7 +287,7 @@ json::json(std::nullptr_t)
 {
 }
 
-json::json(int d)
+json::json(int64_t d)
     : _node(jvalue::int_instance(d))
 {
 }
@@ -351,7 +351,7 @@ bool json::as_bool() const
     return _node->get_bool_unsafe();
 }
 
-int json::as_int() const
+int64_t json::as_int() const
 {
     if (value_type() != NUMBER)
     {
@@ -535,7 +535,7 @@ bool jvalue::get_bool_unsafe() const
     return static_cast<const jboolean*>(this)->_v;
 }
 
-int jvalue::get_int_unsafe() const
+int64_t jvalue::get_int_unsafe() const
 {
     assert(reinterpret_cast<const jnumber*>(this) != nullptr);
     return static_cast<const jnumber*>(this)->get_int();
@@ -583,7 +583,7 @@ jvalue* jvalue::false_instance()
     return &instance;
 }
 
-jvalue* jvalue::int_instance(int i)
+jvalue* jvalue::int_instance(int64_t i)
 {
     return new jint(i);
 }
