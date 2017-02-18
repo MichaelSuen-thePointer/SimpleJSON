@@ -76,10 +76,12 @@ json jparser::parse_boolean()
 
 std::string jparser::parse_string()
 {
+    skip_space();
     assert(*p == '\"');
     ++p;
     if (*p == '\"')
     {
+        ++p;
         return{};
     }
     std::string str;
@@ -151,6 +153,7 @@ json jparser::parse_object()
     skip_space();
     if (*p == '}')
     {
+        ++p;
         return obj;
     }
     while (*p)
@@ -166,7 +169,6 @@ json jparser::parse_object()
             throw std::runtime_error(("Expected `:` at position ") + std::to_string(p - s));
         }
         ++p;
-        skip_space();
         auto val = parse_value();
         obj.emplace(std::move(str), std::move(val));
         skip_space();
@@ -206,6 +208,7 @@ json jparser::parse_array()
     skip_space();
     if (*p == ']')
     {
+        ++p;
         return arr;
     }
     while (*p)
@@ -234,13 +237,13 @@ json jparser::parse_number()
     skip_space();
     int integer = 0;
     double fraction = 0;
-    bool neg;
+    bool neg = false;
     bool isInteger = true;
     if (*p == '-')
     {
         neg = true;
+        ++p;
     }
-    ++p;
     if (*p == '0')
     {
         ++p;
@@ -301,7 +304,15 @@ json jparser::parse_number()
     }
     if (isInteger)
     {
+        if (neg)
+        {
+            return -integer;
+        }
         return integer;
+    }
+    if (neg)
+    {
+        return -fraction;
     }
     return fraction;
 }
@@ -394,6 +405,7 @@ void jparser::skip_space()
         {
         case ' ':case '\t':case '\r':case '\n':
             ++p;
+            break;
         default:
             return;
         }

@@ -7,8 +7,8 @@ namespace mq
 class jparser
 {
 public:
-    static json parse(const std::string& s, std::string& err);
-    static json parse(const std::string& s);
+    static json parse(const std::string& s, std::string& err) noexcept;
+    static json parse(const std::string& s) noexcept;
 private:
     jparser(const std::string& s);
 

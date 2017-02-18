@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(json_edit_test)
     doc = nullptr;
 }
 
-BOOST_AUTO_TEST_CASE(json_string_escape_sequence)
+BOOST_AUTO_TEST_CASE(json_string_escape_sequence_test)
 {
     std::string err;
     auto _1 = jparser::parse(R"("")", err);
@@ -132,4 +132,59 @@ BOOST_AUTO_TEST_CASE(json_string_escape_sequence)
     auto _3 = jparser::parse(R"("\u0024 \u20AC \uD801\uDC37 \uD852\uDF62")");
     BOOST_TEST((_3.as_string() == "\x24 \xe2\x82\xac \xf0\x90\x90\xb7 \xf0\xa4\xad\xa2"));
     BOOST_TEST((err == ""));
+}
+
+BOOST_AUTO_TEST_CASE(json_number_parse_test)
+{
+    auto _1 = jparser::parse("1.3");
+    BOOST_TEST((_1 == 1.3));
+
+    auto _2 = jparser::parse("-1.3");
+    BOOST_TEST((_2 == -1.3));
+
+    auto _3 = jparser::parse("-0");
+    BOOST_TEST((_3 == 0));
+
+    auto _4 = jparser::parse("0");
+    BOOST_TEST((_4 == 0));
+
+    auto _5 = jparser::parse("0.4");
+    BOOST_TEST((_5 == 0.4));
+
+    auto _6 = jparser::parse("-0.4");
+    BOOST_TEST((_6 == -0.4));
+
+    auto _7 = jparser::parse("-23.4e+10");
+    BOOST_TEST((_7 == -23.4e+10));
+
+    auto _8 = jparser::parse("0.1e-5");
+    BOOST_TEST((_8 == 0.1E-5));
+
+    auto _9 = jparser::parse("0.1e5");
+    BOOST_TEST((_9 == 0.1e5));
+}
+
+BOOST_AUTO_TEST_CASE(json_parser_test)
+{
+    auto _1 = jparser::parse(R"(
+{
+    "int" : 1,
+    "double" : 1.2,
+    "string" : "str123",
+    "arr" : [1, 2.2, true, false, null, {}, []]
+}
+)");
+
+    BOOST_TEST((_1["int"] == 1));
+    BOOST_TEST((_1["double"] == 1.2));
+    BOOST_TEST((_1["string"] == "str123"));
+    BOOST_TEST((_1["arr"].is_array()));
+    BOOST_TEST((_1["arr"][0] == 1));
+    BOOST_TEST((_1["arr"][1] == 2.2));
+    BOOST_TEST((_1["arr"][2] == true));
+    BOOST_TEST((_1["arr"][3] == false));
+    BOOST_TEST((_1["arr"][4] == nullptr));
+    BOOST_TEST((_1["arr"][5].is_object()));
+    BOOST_TEST((_1["arr"][6].is_array()));
+
 }

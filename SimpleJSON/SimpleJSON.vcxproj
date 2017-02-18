@@ -111,13 +111,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="jerror.h" />
-    <ClInclude Include="jnode.h" />
     <ClInclude Include="jparser.h" />
     <ClInclude Include="json.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="jnode.cpp" />
     <ClCompile Include="jparser.cpp" />
     <ClCompile Include="json.cpp" />
     <ClCompile Include="main.cpp" />
