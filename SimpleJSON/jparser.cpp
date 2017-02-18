@@ -6,7 +6,7 @@
 
 namespace mq
 {
-json jparser::parse(const std::string& s, std::string& err)
+json jparser::parse(const std::string& s, std::string& err) noexcept
 {
     try
     {
@@ -20,7 +20,7 @@ json jparser::parse(const std::string& s, std::string& err)
     }
 }
 
-json jparser::parse(const std::string& s)
+json jparser::parse(const std::string& s) noexcept
 {
     std::string err;
     return parse(s, err);
@@ -249,18 +249,16 @@ json jparser::parse_number()
     {
         ++c;
     }
-    else if (isdigit(*c)) //1-9
+    else if (isdigit(*c)) // 1-9
     {
         integer = std::strtoll(p, &e, 10);
-        if (*e != '.' || *e != 'e' || *e != 'E') // Number is integer.
-        {
-            if (errno == ERANGE)
-            {
-                throw std::runtime_error(("Number too big at position ") + std::to_string(e - s));
-            }
+        if (errno != ERANGE && (*e != '.' || *e != 'e' || *e != 'E'))
+        { // Number is a valid integer.
             p = e;
             return integer;
         }
+        errno = 0;  // Reset.
+        c = e;
     }
     else
     {
