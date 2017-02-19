@@ -43,59 +43,6 @@ public:
     static jvalue* array_instance(json::array&& s);
 };
 
-//TODO: make it thread-safe
-class json_flat_deleter
-{
-public:
-    static json_flat_deleter& instance()
-    {
-        static json_flat_deleter instance{};
-        return instance;
-    }
-    json_flat_deleter(const json_flat_deleter&) = delete;
-    json_flat_deleter& operator=(const json_flat_deleter&) = delete;
-    json_flat_deleter(json_flat_deleter&&) = delete;
-    json_flat_deleter& operator=(json_flat_deleter&&) = delete;
-    void add_value(const jvalue* v)
-    {
-#ifdef _DEBUG
-        if (std::find(jvalues.begin(), jvalues.end(), v) != jvalues.end())
-        {
-            assert(0);
-        }
-#endif
-        jvalues.push_back(v);
-        if (jvalues.size() > 16)
-        {
-            start_delete();
-        }
-    }
-    void start_delete()
-    {
-        if (is_started)
-        {
-            return;
-        }
-        is_started = true;
-        size_t i = 0;
-        while (i != jvalues.size())
-        {
-            delete jvalues[i];
-            i++;
-        }
-        jvalues.clear();
-        is_started = false;
-    }
-    ~json_flat_deleter()
-    {
-        start_delete();
-    }
-private:
-    json_flat_deleter() {}
-    bool is_started = false;
-    std::vector<const jvalue*> jvalues;
-};
-
 class jnumber : public jvalue
 {
 public:
@@ -302,6 +249,59 @@ public:
     }
 };
 
+void json_flat_deleter::operator()(const jvalue* v) const noexcept
+{
+#ifdef _DEBUG
+    if (std::find(deferred_pool.begin(), deferred_pool.end(), v) != deferred_pool.end())
+    {
+        assert(0);
+    }
+#endif
+    if (v == nullptr)
+    {
+        return;
+    }
+    switch (v->type())
+    {
+    case json::OBJECT:
+    case json::ARRAY:
+    case json::STRING:
+    case json::NUMBER:
+        deferred_pool.push_back(v);
+        start_delete(); // No defer at now
+    default:;
+    }
+}
+
+void json_flat_deleter::start_delete()
+{
+    if (is_started)
+    {
+        return;
+    }
+    is_started = true;
+    size_t i = 0;
+    while (i != deferred_pool.size())
+    {
+        delete deferred_pool[i];
+        i++;
+    }
+    deferred_pool.clear();
+    is_started = false;
+}
+
+bool json_flat_deleter::is_started;
+std::vector<const jvalue*> json_flat_deleter::deferred_pool;
+
+json::json(jvalue* v)
+    : _node(v, json_flat_deleter{})
+{
+}
+
+jvalue* json::get() const
+{
+    return _node.get();
+}
 
 json::json()
     : json(nullptr)
@@ -309,68 +309,63 @@ json::json()
 }
 
 json::json(std::nullptr_t)
-    : _node(jvalue::null_instance())
+    : json(jvalue::null_instance())
 {
 }
 
 json::json(int d)
-    : _node(jvalue::int_instance(d))
+    : json(jvalue::int_instance(d))
 {
 }
 
 json::json(int64_t d)
-    : _node(jvalue::int_instance(d))
+    : json(jvalue::int_instance(d))
 {
 }
 
 json::json(double d)
-    : _node(jvalue::double_instance(d))
+    : json(jvalue::double_instance(d))
 {
 }
 
 json::json(const std::string& s)
-    : _node(jvalue::string_instance(s))
+    : json(jvalue::string_instance(s))
 {
 }
 
 json::json(std::string&& s)
-    : _node(jvalue::string_instance(std::move(s)))
+    : json(jvalue::string_instance(std::move(s)))
 {
 }
 
 json::json(const char* s)
-    : _node(jvalue::string_instance(s))
+    : json(jvalue::string_instance(s))
 {
 }
 
 json::json(const object& r)
-    : _node(jvalue::object_instance(r))
+    : json(jvalue::object_instance(r))
 {
 }
 
 json::json(object&& r)
-    : _node(jvalue::object_instance(std::move(r)))
+    : json(jvalue::object_instance(std::move(r)))
 {
 }
 
 json::json(const array& r)
-    : _node(jvalue::array_instance(r))
+    : json(jvalue::array_instance(r))
 {
 }
 
 json::json(array&& r)
-    : _node(jvalue::array_instance(std::move(r)))
+    : json(jvalue::array_instance(std::move(r)))
 {
 }
 
 json::json(bool b)
-    : _node(b ? jvalue::true_instance() : jvalue::false_instance())
+    : json(b ? jvalue::true_instance() : jvalue::false_instance())
 {
-}
-
-json::~json()
-{
-    dispose_node(_node);
 }
 
 bool json::as_bool() const
@@ -379,7 +374,7 @@ bool json::as_bool() const
     {
         return false;
     }
-    return _node->get_bool_unsafe();
+    return get()->get_bool_unsafe();
 }
 
 int64_t json::as_int() const
@@ -388,7 +383,7 @@ int64_t json::as_int() const
     {
         return 0;
     }
-    return _node->get_int_unsafe();
+    return get()->get_int_unsafe();
 }
 
 double json::as_double() const
@@ -397,7 +392,7 @@ double json::as_double() const
     {
         return 0;
     }
-    return _node->get_double_unsafe();
+    return get()->get_double_unsafe();
 }
 
 const std::string& json::as_string() const
@@ -407,7 +402,7 @@ const std::string& json::as_string() const
     {
         return empty;
     }
-    return _node->get_string_unsafe();
+    return get()->get_string_unsafe();
 }
 
 const json::object& json::as_object() const
@@ -417,7 +412,7 @@ const json::object& json::as_object() const
     {
         return empty;
     }
-    return _node->get_object_unsafe();
+    return get()->get_object_unsafe();
 }
 
 const json::array& json::as_array() const
@@ -427,81 +422,49 @@ const json::array& json::as_array() const
     {
         return empty;
     }
-    return _node->get_array_unsafe();
+    return get()->get_array_unsafe();
 }
 
 json::type json::value_type() const
 {
-    return _node->type();
+    return get()->type();
 }
 
 bool json::is_object() const
 {
-    return _node->type() == json::OBJECT;
+    return get()->type() == json::OBJECT;
 }
 
 bool json::is_array() const
 {
-    return _node->type() == json::ARRAY;
+    return get()->type() == json::ARRAY;
 }
 
 bool json::is_number() const
 {
-    return _node->type() == json::NUMBER;
+    return get()->type() == json::NUMBER;
 }
 
 bool json::is_string() const
 {
-    return _node->type() == json::STRING;
+    return get()->type() == json::STRING;
 }
 
 bool json::is_boolean() const
 {
-    return _node->type() == json::BOOLEAN;
+    return get()->type() == json::BOOLEAN;
 }
 
 bool json::is_null() const
 {
-    return _node->type() == json::NUL;
-}
-
-json::json(const json& r)
-    : _node(r._node->clone())
-{
-}
-
-json& json::operator=(const json& r)
-{
-    if (this != std::addressof(r))
-    {
-        dispose_node(_node);
-        _node = r._node->clone();
-    }
-    return *this;
-}
-
-json::json(json&& r) noexcept
-    : _node(r._node)
-{
-    r._node = nullptr;
-}
-
-json& json::operator=(json&& r) noexcept
-{
-    if (this != std::addressof(r))
-    {
-        dispose_node(_node);
-        _node = r._node;
-        r._node = nullptr;
-    }
-    return *this;
+    return get()->type() == json::NUL;
 }
 
 const json& json::operator[](const std::string& i) const
 {
     if (value_type() == OBJECT)
     {
-        return _node->get_value_unsafe(i);
+        return get()->get_value_unsafe(i);
     }
     return null;
 }
@@ -512,29 +475,16 @@ json& json::operator[](const std::string& i)
     {
         *this = object{};
     }
-    return static_cast<jobject*>(_node)->_v[i];
+    if (_node.use_count() != 1)
+    {
+        _node.reset(get()->clone(), json_flat_deleter{});
+    }
+    return static_cast<jobject*>(get())->_v[i];
 }
 
 json json::parse(const std::string& s)
 {
     return jparser::parse(s);
-}
-
-void json::dispose_node(const jvalue* n)
-{
-    if (n == nullptr)
-    {
-        return;
-    }
-    switch (n->type())
-    {
-    case OBJECT:
-    case ARRAY:
-    case STRING:
-    case NUMBER:
-        json_flat_deleter::instance().add_value(n);
-    default:;
-    }
 }
 
 const json& jvalue::get_value_unsafe(const std::string& key) const
@@ -654,16 +604,11 @@ jvalue* jvalue::array_instance(json::array&& s)
     return new jarray(std::move(s));
 }
 
-void cleanup()
-{
-    json_flat_deleter::instance().start_delete();
-}
-
 const json& json::operator[](size_t i) const
 {
     if (value_type() == ARRAY)
     {
-        return _node->get_value_unsafe(i);
+        return get()->get_value_unsafe(i);
     }
     return null;
 }
@@ -672,21 +617,28 @@ json& json::operator[](size_t i)
 {
     if (value_type() == ARRAY)
     {
-        auto& arr = static_cast<jarray*>(_node)->_v;
-        if (arr.size() > i)
         {
-            return arr[i];
+            auto& arr = static_cast<jarray*>(get())->_v;
+            if (arr.size() > i)
+            {
+                return arr[i];
+            }
         }
+        if (_node.use_count() != 1) //copy on write when shared
+        {
+            _node.reset(get()->clone(), json_flat_deleter{});
+        }
+        auto& arr = static_cast<jarray*>(get())->_v; //array may change
         arr.insert(arr.end(), i - arr.size() + 1, json{});
         return arr[i];
     }
     (*this) = array(i + 1);
-    return static_cast<jarray*>(_node)->_v[i];
+    return static_cast<jarray*>(get())->_v[i];
 }
 
 bool operator==(const json& l, const json& r)
 {
-    return l._node->type() == r._node->type() && l._node->equals_to_unsafe(r._node);
+    return l.get()->type() == r.get()->type() && l.get()->equals_to_unsafe(r.get());
 }
 
 bool operator!=(const json& l, const json& r)

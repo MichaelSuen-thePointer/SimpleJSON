@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(json_number_parse_test)
 
 BOOST_AUTO_TEST_CASE(json_big_number_test)
 {
-    auto j = jparser::parse("100000000000000000000000000"); //1e26 fallback to double
+    auto j = jparser::parse("100000000000000000000000000"); //1e26 fallsback to double
     BOOST_TEST((j == 1e26));
 }
 
@@ -192,5 +192,4 @@ BOOST_AUTO_TEST_CASE(json_parser_test)
     BOOST_TEST((_1["arr"][4] == nullptr));
     BOOST_TEST((_1["arr"][5].is_object()));
     BOOST_TEST((_1["arr"][6].is_array()));
-
 }

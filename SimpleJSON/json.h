@@ -17,14 +17,32 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <mutex>
+#include <memory>
 
 namespace mq
 {
 
 class jvalue;
 
+class json_flat_deleter
+{
+public:
+    void operator()(const jvalue* v) const noexcept;
+
+    static void start_delete();
+private:
+    static bool is_started;
+    static std::vector<const jvalue*> deferred_pool;
+};
+
 class json
 {
+private:
+    using base = std::shared_ptr<jvalue>;
+    json(jvalue* v);
+    std::shared_ptr<jvalue> _node;
+    jvalue* get() const;
 public:
     using object = std::map<std::string, json>;
     using array = std::vector<json>;
@@ -55,7 +73,6 @@ public:
     json(bool b);
     template<class T>
     json(T*) = delete; //delete all other ctors
-    ~json();
 
     bool as_bool() const;
     int64_t as_int() const;
@@ -72,10 +89,10 @@ public:
     bool is_boolean() const;
     bool is_null() const;
 
-    json(const json& r);
-    json& operator=(const json& r);
-    json(json&& r) noexcept;
-    json& operator=(json&& r) noexcept;
+    json(const json& r) = default;
+    json& operator=(const json& r) = default;
+    json(json&& r) noexcept = default;
+    json& operator=(json&& r) noexcept = default;
 
     const json& operator[](size_t i) const;
     json& operator[](size_t i);
@@ -86,9 +103,6 @@ public:
     friend bool operator!=(const json& l, const json& r);
 
     static json parse(const std::string& s);
-private:
-    static void dispose_node(const jvalue* n);
-    jvalue* _node;
 };
 
 }
