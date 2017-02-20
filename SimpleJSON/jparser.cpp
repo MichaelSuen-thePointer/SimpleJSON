@@ -32,34 +32,143 @@ jparser::jparser(const std::string& s)
 {
 }
 
+/*
+ * This method uses an ugly way to make the parsing not recursive.
+ * Basically, it use vectors to simulate the stack and use macro
+ * `CALL` and `RETURN` to simulate the invoking and returning of
+ * the subroutine.
+ */
 json jparser::parse_value()
 {
+#define RETURN(val) if (recurHeight == 0) return val; returnValues.emplace_back(std::move(val)); recurHeight--; \
+    _addr = returnAddr.back(); returnAddr.pop_back(); \
+    switch(_addr) { case parse_value_object: goto VALUE_OBJECT_RETURN; case parse_value_array: goto VALUE_ARRAY_RETURN;\
+    case parse_object_value: goto OBJECT_VALUE_RETURN; case parse_array_value: goto ARRAY_VALUE_RETURN; default: assert(0); } (void)0
+
+#define CALL(call_label, back_addr, back_label, assign_val) \
+    returnAddr.push_back(back_addr); recurHeight++; goto call_label; back_label: assign_val = pop_back(returnValues)
+
+    enum return_addr { parse_value_object, parse_value_array, parse_object_value, parse_array_value };
+    int recurHeight = 0;
+    std::vector<json> returnValues;
+    std::vector<return_addr> returnAddr;
+    std::vector<json::object> obj;
+    std::vector<json::array> arr;
+    auto pop_back = [](auto& vec) { auto t = vec.back(); vec.pop_back();  return t; };
+    return_addr _addr;
+    std::string str;
+PARSE_VALUE:
     skip_space();
     if (*p == '\0')
     {
-        return json::null;
+        RETURN(json::null);
     }
     switch (*p)
     {
-    case '{':
-        return parse_object();
+    case '{': //OBJECT
+    {
+        CALL(PARSE_OBJECT, parse_value_object, VALUE_OBJECT_RETURN, auto _theobj);
+        RETURN(_theobj);
+    }
     case '[':
-        return parse_array();
+    {
+        CALL(PARSE_ARRAY, parse_value_array, VALUE_ARRAY_RETURN, auto _thearray);
+        RETURN(_thearray);
+    }
     case 't': case 'f':
-        return parse_boolean();
+        RETURN(parse_boolean());
     case 'n':
-        return parse_null();
+        RETURN(parse_null());
     case '\"':
-        return parse_string();
+        RETURN(parse_string());
     default:
-        if (isdigit(*p) || *p == '-')
+        if (isdigit(*p) || *p == '-');
         {
-            return parse_number();
+            RETURN(parse_number());
         }
-        return json::null;
+        RETURN(json::null);
+    }
+    { //PARSE OBJECT
+PARSE_OBJECT:
+        skip_space();
+        assert(*p == '{');
+        ++p;
+        skip_space();
+        if (*p == '}')
+        {
+            ++p;
+            RETURN(json::object{});
+        }
+        obj.emplace_back();
+        while (*p)
+        {
+            str = parse_string();
+            if (obj.back().find(str) != obj.back().end())
+            {
+                throw std::runtime_error(("Duplicated key at position ") + std::to_string(p - s - str.size()));
+            }
+            skip_space();
+            if (*p != ':')
+            {
+                throw std::runtime_error(("Expected `:` at position ") + std::to_string(p - s));
+            }
+            ++p;
+            CALL(PARSE_VALUE, parse_object_value, OBJECT_VALUE_RETURN, auto val);
+
+            obj.back().emplace(std::move(str), std::move(val));
+            skip_space();
+            if (*p == ',')
+            {
+                ++p;
+            }
+            else if (*p == '}')
+            {
+                ++p;
+                RETURN(pop_back(obj));
+            }
+            else
+            {
+                throw std::runtime_error(("Expected `}` or `,` at position ") + std::to_string(p - s));
+            }
+        }
+        throw std::runtime_error(("Unexpected end of input"));
+    }
+    { //PARSE ARRAY
+PARSE_ARRAY:
+        skip_space();
+        assert(*p == '[');
+        ++p;
+        skip_space();
+        if (*p == ']')
+        {
+            ++p;
+            RETURN(json::array{});
+        }
+        arr.emplace_back();
+        while (*p)
+        {
+            CALL(PARSE_VALUE, parse_array_value, ARRAY_VALUE_RETURN, auto _val);
+            arr.back().push_back(std::move(_val));
+            skip_space();
+            if (*p == ',')
+            {
+                ++p;
+            }
+            else if (*p == ']')
+            {
+                ++p;
+                RETURN(pop_back(arr));
+            }
+            else
+            {
+                throw std::runtime_error(("Expected `,` or `]` at position ") + std::to_string(p - s));
+            }
+        }
+        throw std::runtime_error(("Unexpected end of input"));
     }
 }
-
+#undef CALL
+#undef RETURN
 json jparser::parse_boolean()
 {
     skip_space();
