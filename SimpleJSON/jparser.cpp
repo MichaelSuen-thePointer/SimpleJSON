@@ -3,7 +3,8 @@
 #include <cctype>
 #include <cassert>
 #include <cstdlib>
-
+#include <clocale>
+#include <cuchar>
 namespace mq
 {
 json jparser::parse(const std::string& s, std::string& err) noexcept
@@ -82,7 +83,7 @@ PARSE_VALUE:
     case '\"':
         RETURN(parse_string());
     default:
-        if (isdigit(*p) || *p == '-');
+        if (isdigit(*p) || *p == '-')
         {
             RETURN(parse_number());
         }
@@ -236,6 +237,7 @@ std::string jparser::parse_string()
                 str.push_back('\t');
                 continue;
             case 'u':
+                --p; //step back, give full `\uXXXX` sequence to parse function, for loop invariance
                 str += parse_utf16_escape_sequence();
                 continue;
             default:; //fall through
@@ -412,84 +414,34 @@ json jparser::parse_number()
     return fraction;
 }
 
+/*
+ * Use `c16rtomb` to convert utf16 sequence to utf-8
+ */
 std::string jparser::parse_utf16_escape_sequence()
 {
-    std::string str;
-    assert(*p == 'u');
-    ++p;
-    uint32_t h;
-    uint32_t ch;
-    if (sscanf(p, "%04x", &h) != 1)
+    char u8str[7]{}; //support the origin version of utf-8: at most 6 chars
+    uint16_t char16;
+    std::mbstate_t convState = {};
+    size_t convSize;
+    do //this loop will loop for at most 2 cycles
     {
-        throw std::runtime_error(("Expected 4 hexadecimal digits at position ") + std::to_string((p - s)));
-    }
-    p += 4;
-    if ((h & 0xFC00) == 0xD800) //utf-16 BE
-    {
-        ch = h & 0x3FF;
         if (strncmp(p, "\\u", 2) != 0)
         {
-            throw std::runtime_error("Expected `\\uxxxx` escape sequence at position " + std::to_string(p - s));
+            throw std::runtime_error("Expected `\\uXXXX` escape sequence at position " + std::to_string((p - s)));
         }
         p += 2;
-        if (sscanf(p, "%04x", &h) != 1 || ((h & 0xFC00) != 0xDC00))
+        if (sscanf(p, "%04hx", &char16) != 1)
         {
-            throw std::runtime_error(("Encoding error at position ") + std::to_string((p - s)));
+            throw std::runtime_error("Expected 4 hexadecimal digit sequence at position " + std::to_string((p - s)));
+        }
+        convSize = std::c16rtomb(u8str, char16, &convState);
+        if (convSize == -1)
+        {
+            throw std::runtime_error("Bad utf-16 code point at position " + std::to_string(p - s));
         }
         p += 4;
-        ch = (ch << 10) | (h & 0x3FF);
-        ch += 0x10000;
-    }
-    else
-    {
-        ch = h;
-    }
-    if (ch <= 0x7F)
-    {
-        str.push_back(static_cast<char>(ch));
-        return str;
-    }
-    if (ch <= 0x7FF)
-    {
-        str.push_back(0b1100'0000 | (ch >> 6));
-        str.push_back(0b1000'0000 | (ch & 0x3F));
-        return str;
-    }
-    if (ch <= 0xFFFF)
-    {
-        str.push_back(0b1110'0000 | (ch >> 12));
-        str.push_back(0b1000'0000 | ((ch >> 6) & 0x3F));
-        str.push_back(0b1000'0000 | (ch & 0x3F));
-        return str;
-    }
-    if (ch <= 0x1FFFFF)
-    {
-        str.push_back(0b1111'0000 | (ch >> 18));
-        str.push_back(0b1000'0000 | ((ch >> 12) & 0x3F));
-        str.push_back(0b1000'0000 | ((ch >> 6) & 0x3F));
-        str.push_back(0b1000'0000 | (ch & 0x3F));
-        return str;
-    }
-    if (ch <= 0x3FFFFFF)
-    {
-        str.push_back(0b1111'1000 | (ch >> 24));
-        str.push_back(0b1000'0000 | ((ch >> 18) & 0x3F));
-        str.push_back(0b1000'0000 | ((ch >> 12) & 0x3F));
-        str.push_back(0b1000'0000 | ((ch >> 6) & 0x3F));
-        str.push_back(0b1000'0000 | (ch & 0x3F));
-        return str;
-    }
-    if (ch <= 0x7FFFFFFF)
-    {
-        str.push_back(0b1111'1100 | (ch >> 30));
-        str.push_back(0b1000'0000 | ((ch >> 24) & 0x3F));
-        str.push_back(0b1000'0000 | ((ch >> 18) & 0x3F));
-        str.push_back(0b1000'0000 | ((ch >> 12) & 0x3F));
-        str.push_back(0b1000'0000 | ((ch >> 6) & 0x3F));
-        str.push_back(0b1000'0000 | (ch & 0x3F));
-        return str;
-    }
-    return str;
+    } while (convSize == 0); // convSize == 0, meet multibyte utf-16 char, continue loop for next
+    return u8str; //copy to return
 }
 
 void jparser::skip_space()
