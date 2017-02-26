@@ -90,7 +90,7 @@ protected:
     }
     bool equals_to(double i) const override
     {
-        return _v == i;
+        return static_cast<double>(_v) == i;
     }
 private:
     int64_t _v;
@@ -124,7 +124,7 @@ public:
 protected:
     bool equals_to(int64_t i) const override
     {
-        return _v == i;
+        return _v == static_cast<double>(i);
     }
     bool equals_to(double i) const override
     {

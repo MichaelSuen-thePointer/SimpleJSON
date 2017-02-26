@@ -129,6 +129,7 @@ BOOST_AUTO_TEST_CASE(json_string_escape_sequence_test)
     BOOST_TEST((_2.as_string() == "\" \\ / \b \f \n \r \t"));
     BOOST_TEST((err == ""));
 
+    //auto _3 = jparser::parse(R"("\u0024 \u20AC \uD801\uDC37 \uD852\uDF62")");
     auto _3 = jparser::parse(R"("\u0024 \u20AC \uD801\uDC37 \uD852\uDF62")");
     BOOST_TEST((_3.as_string() == "\x24 \xe2\x82\xac \xf0\x90\x90\xb7 \xf0\xa4\xad\xa2"));
     BOOST_TEST((err == ""));

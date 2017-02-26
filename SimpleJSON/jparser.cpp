@@ -3,6 +3,7 @@
 #include <cctype>
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <clocale>
 #include <cuchar>
 namespace mq
@@ -419,9 +420,8 @@ json jparser::parse_number()
  */
 std::string jparser::parse_utf16_escape_sequence()
 {
-    char u8str[7]{}; //support the origin version of utf-8: at most 6 chars
+    std::string str;
     uint16_t char16;
-    std::mbstate_t convState = {};
     size_t convSize;
     do //this loop will loop for at most 2 cycles
     {
@@ -434,14 +434,91 @@ std::string jparser::parse_utf16_escape_sequence()
         {
             throw std::runtime_error("Expected 4 hexadecimal digit sequence at position " + std::to_string((p - s)));
         }
-        convSize = std::c16rtomb(u8str, char16, &convState);
-        if (convSize == -1)
+
+        convSize = utf16_to_utf8(char16, str);
+
+        if (convSize == static_cast<size_t>(-1))
         {
             throw std::runtime_error("Bad utf-16 code point at position " + std::to_string(p - s));
         }
         p += 4;
     } while (convSize == 0); // convSize == 0, meet multibyte utf-16 char, continue loop for next
-    return u8str; //copy to return
+    return str; //copy to return
+}
+
+/*
+ * This is a modified version of MSCRT's c16rtomb.cpp
+ */
+size_t jparser::utf16_to_utf8(char16_t c16, std::string& s)
+{
+    int nextra;
+
+    static struct internal_state_t
+    {
+        unsigned long _wchar;
+        unsigned short _byte, _state;
+    } pst{};
+
+    char state = static_cast<char>(pst._state); /* number of extra words expected */
+    unsigned long wc = pst._wchar; /* cumulative character */
+
+    if (state != 0)
+    { /* fold in second word and convert */
+        if (c16 < 0xdc00 || 0xe000 <= c16)
+        {
+            pst = {};
+            return static_cast<size_t>(-1); /* invalid second word */
+        }
+        pst._state = 0;
+        wc |= static_cast<unsigned long>(c16 - 0xdc00);
+    }
+    else if (c16 < 0xd800 || 0xdc00 <= c16)
+    {
+        wc = static_cast<unsigned long>(c16); /* not first word */
+    }
+    else
+    { /* save value bits of first word for later */
+        pst._state = 1;
+        pst._wchar = static_cast<unsigned long>((c16 - 0xd800 + 0x0040) << 10);
+        return (0);
+    }
+
+    if ((wc & ~0x7fUL) == 0)
+    { /* generate a single byte */
+        s += static_cast<unsigned char>(wc);
+        nextra = 0;
+    }
+    else if ((wc & ~0x7ffUL) == 0)
+    { /* generate two bytes */
+        s += static_cast<unsigned char>(0xc0 | wc >> 6);
+        nextra = 1;
+    }
+    else if ((wc & ~0xffffUL) == 0)
+    { /* generate three bytes */
+        s += static_cast<unsigned char>(0xe0 | wc >> 12);
+        nextra = 2;
+    }
+    else if ((wc & ~0x1fffffUL) == 0)
+    { /* generate four bytes */
+        s += static_cast<unsigned char>(0xf0 | wc >> 18);
+        nextra = 3;
+    }
+    else if ((wc & ~0x3ffffffUL) == 0)
+    { /* generate five bytes */
+        s += static_cast<unsigned char>(0xf8 | wc >> 24);
+        nextra = 4;
+    }
+    else
+    { /* generate six bytes */
+        s += static_cast<unsigned char>(0xfc | ((wc >> 30) & 0x03));
+        nextra = 5;
+    }
+
+    for (int i = nextra; i > 0; --i)
+    {
+        s += static_cast<unsigned char>(0x80 | ((wc >> 6 * (i - 1)) & 0x3f));
+    }
+    return nextra + 1;
 }
 
 void jparser::skip_space()

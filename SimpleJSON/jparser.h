@@ -11,7 +11,6 @@ public:
     static json parse(const std::string& s) noexcept;
 private:
     jparser(const std::string& s);
-    json parse_value_nonrecur();
 
     json parse_value();
     json parse_boolean();
@@ -22,6 +21,9 @@ private:
     json parse_number();
 
     std::string parse_utf16_escape_sequence();
+
+    static size_t utf16_to_utf8(char16_t ch, std::string& s);
+
     void skip_space();
     const char* s;
     const char* p;
