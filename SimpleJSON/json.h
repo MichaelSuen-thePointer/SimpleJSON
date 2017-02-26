@@ -41,8 +41,8 @@ class json
 private:
     using base = std::shared_ptr<jvalue>;
     json(jvalue* v);
-    std::shared_ptr<jvalue> _node;
     jvalue* get() const;
+    std::shared_ptr<jvalue> _node;
 public:
     using object = std::map<std::string, json>;
     using array = std::vector<json>;
